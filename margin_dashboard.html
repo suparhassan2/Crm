@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Margin Account Monitor — Sun Life Financial</title>
+<title>Margin Account Monitor — SLCSI</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -374,6 +374,44 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
 .adv-input::placeholder { color: var(--text-xlight); font-style: italic; font-size: 11px; }
 .days-empty { color: var(--text-xlight); font-style: italic; font-size: 11px; }
 
+/* ── Account Summary table ── */
+.sum-legend {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  font-size: 11px; color: var(--text-light); margin-bottom: 12px; padding: 0 2px;
+}
+.sum-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+.sum-table { width: 100%; border-collapse: collapse; }
+.sum-table thead th {
+  background: var(--sl-teal-xpale); color: var(--sl-teal-light);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 11px 16px; text-align: left; white-space: nowrap;
+  border-bottom: 1.5px solid var(--border);
+}
+.sum-table thead th.num { text-align: right; }
+.sum-table td {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: 12.5px; color: var(--text-dark); vertical-align: middle; white-space: nowrap;
+}
+.sum-table tbody tr:hover { background: var(--sl-teal-xpale); }
+.sum-base { min-width: 100px; }
+.sum-name { font-weight: 500; min-width: 160px; }
+.sum-money { text-align: right; font-variant-numeric: tabular-nums; }
+.sum-usage { min-width: 200px; padding: 10px 16px; }
+.usage-bar-wrap { display: flex; align-items: center; gap: 10px; }
+.usage-bar-track { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; min-width: 80px; }
+.usage-bar-fill  { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+.usage-bar-label { min-width: 48px; text-align: right; font-weight: 700; font-size: 12px; }
+.sum-totals-row td {
+  background: var(--sl-teal-pale); color: var(--sl-teal);
+  font-weight: 700; font-size: 12.5px;
+  border-top: 2px solid var(--border-mid);
+  padding: 12px 16px; white-space: nowrap;
+}
+.sum-totals-row .num { text-align: right; }
+.sum-totals-row .sum-usage { padding: 10px 16px; }
+.amber-pale { background: var(--amber-pale) !important; }
+.red-pale   { background: var(--red-pale)   !important; }
+
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -402,7 +440,7 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
           </svg>
         </div>
         <div class="brand-name">
-          Sun Life Financial
+          SLCSI
           <span>Margin Account Monitor</span>
         </div>
       </div>
@@ -510,6 +548,10 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
 
       <!-- Sub-tab switcher -->
       <div class="subtab-bar">
+        <button class="subtab" id="st-summary" onclick="switchSubtab('summary')">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="14" height="14" rx="1"/><path d="M4 8h8M4 5h8M4 11h5"/></svg>
+          Account Summary
+        </button>
         <button class="subtab active" id="st-acct" onclick="switchSubtab('acct')">
           <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h8"/></svg>
           Account Review
@@ -519,6 +561,11 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
           Concentration Alerts
           <span class="subtab-badge" id="alert-subtab-badge">6</span>
         </button>
+      </div>
+
+      <!-- ── Account Summary sub-panel ── -->
+      <div id="sub-summary" style="display:none;">
+        <div id="summary-table-wrap"></div>
       </div>
 
       <!-- ── Account Review sub-panel ── -->
@@ -575,7 +622,7 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
                   <th>Symbol</th>
                   <th>Security</th>
                   <th class="num th-cad-equiv">Market Value (CAD)</th>
-                  <th class="num">Conc. Ratio (CAD)</th>
+                  <th class="num" title="Position Loan Value (CAD) ÷ Account Loan Value (CAD, E+F combined) × 100">Conc. Ratio (LV/Loan)</th>
                   <th class="num">Days to Liq.</th>
                 </tr>
               </thead>
@@ -615,7 +662,7 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
         </div>
         <div class="threshold-note">
           Days to Liq. = Qty ÷ (ADV × participation rate)<br>
-          Enter ADV per position in the table below
+          Ratio = Position LV (CAD) ÷ Acct Loan (CAD E+F) × 100
         </div>
       </div>
       <div class="section-header">
@@ -638,7 +685,7 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
                 <th class="num th-cad-equiv">Position MV (CAD)</th>
                 <th class="num th-cad-equiv">Position LV (CAD)</th>
                 <th class="num th-cad-equiv" title="CAD equivalent: E loan + F loan × FX rate">Acct Loan Val. CAD (E+F)</th>
-                <th class="num">Conc. Ratio</th>
+                <th class="num" title="Position Loan Value (CAD) ÷ Account Loan Value (CAD, E+F combined) × 100">Conc. Ratio (LV/Loan)</th>
                 <th class="num">≥ $100K</th>
                 <th class="num">≥ 30% Ratio</th>
                 <th class="num">Avg Daily Vol (ADV)</th>
@@ -774,7 +821,7 @@ function renderOverview() {
   const rows = DATA.concentration.map(r => {
     const mvCad   = toCad(r.mv, r.ccy);
     const loanCad = cadLoanTotal(r);
-    const ratioCad = loanCad > 0 ? (mvCad / loanCad) * 100 : 0;
+    const ratioCad = loanCad > 0 ? (lvCad / loanCad) * 100 : 0;
     const mf = mvCad >= mvT, rf = ratioCad / 100 >= rtT;
     const alert = (mf && rf) ? 'BOTH' : mf ? 'MV' : rf ? 'RATIO' : null;
     return { ...r, mvCad, loanCad, ratioCad: parseFloat(ratioCad.toFixed(1)), alert };
@@ -839,13 +886,16 @@ function cadEquiv(r) {
   return r.tdMarg * getFxRate();
 }
 
-function onFxChange() { renderAccounts(); renderOverview(); renderConcentration(); }
+function onFxChange() { renderAccounts(); renderOverview(); renderConcentration(); renderSummary(); }
 
 function switchSubtab(name) {
-  document.getElementById('sub-acct').style.display   = name === 'acct'   ? '' : 'none';
-  document.getElementById('sub-alerts').style.display = name === 'alerts' ? '' : 'none';
-  document.getElementById('st-acct').classList.toggle('active',   name === 'acct');
-  document.getElementById('st-alerts').classList.toggle('active', name === 'alerts');
+  document.getElementById('sub-summary').style.display = name === 'summary' ? '' : 'none';
+  document.getElementById('sub-acct').style.display    = name === 'acct'    ? '' : 'none';
+  document.getElementById('sub-alerts').style.display  = name === 'alerts'  ? '' : 'none';
+  ['summary','acct','alerts'].forEach(t =>
+    document.getElementById('st-'+t).classList.toggle('active', t === name)
+  );
+  if (name === 'summary') renderSummary();
 }
 
 function renderAccounts() {
@@ -931,8 +981,8 @@ function renderConcentration() {
     const mvCad    = toCad(r.mv, r.ccy);
     const lvCad    = toCad(r.lv, r.ccy);
     const loanCad  = cadLoanTotal(r);
-    const ratioCad = loanCad > 0 ? (mvCad / loanCad) * 100 : 0;
-    const mvF  = mvCad  >= mvT;
+    const ratioCad = loanCad > 0 ? (lvCad / loanCad) * 100 : 0;
+    const mvF  = mvCad  >= mvT;  // MV flag still uses market value
     const rtF  = ratioCad / 100 >= rtT;
     const alert = (mvF && rtF) ? 'BOTH' : mvF ? 'MV' : rtF ? 'RATIO' : null;
     return { ...r, mvCad, lvCad, loanCad, ratioCad: parseFloat(ratioCad.toFixed(1)), mvFlag: mvF, ratFlag: rtF, alert };
@@ -945,7 +995,7 @@ function renderConcentration() {
   const allRows = DATA.concentration.map(r => {
     const mvCad   = toCad(r.mv, r.ccy);
     const loanCad = cadLoanTotal(r);
-    const ratioCad = loanCad > 0 ? (mvCad / loanCad) * 100 : 0;
+    const ratioCad = loanCad > 0 ? (lvCad / loanCad) * 100 : 0;
     const mf = mvCad >= mvT, rf = ratioCad / 100 >= rtT;
     return (mf || rf) ? ((mf && rf) ? 'BOTH' : mf ? 'MV' : 'RATIO') : null;
   }).filter(Boolean);
@@ -1083,13 +1133,14 @@ function processPOSData(rows) {
     .filter(r => (r['Account Type'] || r['AccountType'] || '').toUpperCase() === 'MRL')
     .map(r => {
       const mv    = parseFloat(r['Position Market Value']) || 0;
+      const lv    = parseFloat(r['Position Loan Value'])   || 0;
       const pC    = (r['Price Currency'] || 'USD').toUpperCase();
       const posId = String(r['Account Number'] || '').trim();
       const base  = posId.slice(0, -1); // first 6 chars — matches account base key
       const cLoan = cadLoanMap[base] || 0;
       const uLoan = usdLoanMap[base] || 0;
       const totalLoan = cLoan + uLoan;
-      const ratio = totalLoan > 0 ? (mv / totalLoan) * 100 : 0;
+      const ratio = totalLoan > 0 ? (lv / totalLoan) * 100 : 0;  // Position LV / Account Loan
       const mvF   = mv >= mvT;
       const rtF   = ratio / 100 >= rtT;
       if (!mvF && !rtF) return null;
@@ -1103,7 +1154,7 @@ function processPOSData(rows) {
         qty:          parseInt(r['Trade Quantity'])       || 0,
         close:        parseFloat(r['Position Close Price'])|| 0,
         mv,
-        lv:           parseFloat(r['Position Loan Value'])|| 0,
+        lv,
         cadLoan:      cLoan,
         usdLoan:      uLoan,
         acctLoan:     totalLoan,
@@ -1137,9 +1188,133 @@ function exportCSV() {
   const tab=document.querySelector('.content.active').id.replace('tab-','');
   let headers,rows;
   if(tab==='overview'){ const fx=getFxRate(); headers=['Account ID','RR Code','Short Name','Business Date','Currency','Loan Value','TD Balance','SD Balance','Market Value','Equity','TD Req Margin','CAD Equiv TD Margin (FX:'+fx.toFixed(4)+')','TD Req Secure','Client','Broker']; rows=DATA.accounts.map(r=>[r.id,r.rr,r.shortName,r.date||'',r.ccy,Number(r.loan).toFixed(2),Number(r.tdBal).toFixed(2),Number(r.sdBal).toFixed(2),Number(r.mv).toFixed(2),Number(r.equity).toFixed(2),Number(r.tdMarg).toFixed(2),cadEquiv(r).toFixed(2),Number(r.tdSec).toFixed(2),r.client,r.broker]); }
-  else { const fx=getFxRate(); const pct=getParticipationRate(); headers=['Account','RR','Name','Symbol','Description','Orig Ccy','Qty','Close Price','MV (CAD)','LV (CAD)','Acct Loan CAD (E+F, FX:'+fx.toFixed(4)+')','Conc% (CAD)','ADV','Days Liq ('+Math.round(pct*100)+'% part.)','MV Flag','Ratio Flag','Alert']; rows=DATA.concentration.map(r=>{const mvC=toCad(r.mv,r.ccy),lvC=toCad(r.lv,r.ccy),lnC=cadLoanTotal(r),rt=lnC>0?(mvC/lnC*100):0;const dExp=calcDaysToLiq(r.qty,r.symbol);return[r.acct,r.rr,r.name,r.symbol,r.desc,r.ccy,r.qty,r.close,mvC.toFixed(2),lvC.toFixed(2),lnC.toFixed(2),rt.toFixed(1),getAdv(r.symbol)||'',dExp!=null?dExp:'',mvC>=(parseFloat(document.getElementById('mv-thresh').value)||100000)?'YES':'no',rt/100>=(parseFloat(document.getElementById('ratio-thresh').value)/100||0.30)?'YES':'no',r.alert];});}
+  else { const fx=getFxRate(); const pct=getParticipationRate(); headers=['Account','RR','Name','Symbol','Description','Orig Ccy','Qty','Close Price','MV (CAD)','LV (CAD)','Acct Loan CAD (E+F, FX:'+fx.toFixed(4)+')','Conc% (CAD)','ADV','Days Liq ('+Math.round(pct*100)+'% part.)','MV Flag','Ratio Flag','Alert']; rows=DATA.concentration.map(r=>{const mvC=toCad(r.mv,r.ccy),lvC=toCad(r.lv,r.ccy),lnC=cadLoanTotal(r),rt=lnC>0?(lvC/lnC*100):0;const dExp=calcDaysToLiq(r.qty,r.symbol);return[r.acct,r.rr,r.name,r.symbol,r.desc,r.ccy,r.qty,r.close,mvC.toFixed(2),lvC.toFixed(2),lnC.toFixed(2),rt.toFixed(1),getAdv(r.symbol)||'',dExp!=null?dExp:'',mvC>=(parseFloat(document.getElementById('mv-thresh').value)||100000)?'YES':'no',rt/100>=(parseFloat(document.getElementById('ratio-thresh').value)/100||0.30)?'YES':'no',r.alert];});}
   const csv=[headers,...rows].map(r=>r.map(v=>`"${v}"`).join(',')).join('\n');
   const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`sunlife_margin_${tab}_${DATA.summary.reportDate}.csv`; a.click();
+}
+
+function renderSummary() {
+  const fx  = getFxRate();
+  const wrap = document.getElementById('summary-table-wrap');
+  if (!wrap) return;
+
+  if (!DATA.accounts.length) {
+    wrap.innerHTML = '<div class="empty" style="padding:40px;">Upload an Account file to load data</div>';
+    return;
+  }
+
+  // Group E + F sub-accounts by base (first 6 chars = all chars except last)
+  const groups = {};
+  DATA.accounts.forEach(a => {
+    const base = a.id.slice(0, -1);  // e.g. "AB1234" from "AB1234E"
+    if (!groups[base]) {
+      groups[base] = {
+        base,
+        shortName: a.shortName,
+        rr:        a.rr,
+        client:    a.client,
+        cadLoan:   0, usdLoan:   0,
+        cadTDMarg: 0, usdTDMarg: 0,
+        cadEquity: 0, usdEquity: 0,
+      };
+    }
+    const g = groups[base];
+    if (a.suffix === 'E') {           // CAD sub-account
+      g.cadLoan   += a.loan;
+      g.cadTDMarg += a.tdMarg;
+      g.cadEquity += a.equity;
+    } else {                          // USD sub-account — convert to CAD
+      g.usdLoan   += a.loan;
+      g.usdTDMarg += a.tdMarg;
+      g.usdEquity += a.equity;
+    }
+  });
+
+  // Compute CAD-equivalent totals for each group
+  const rows = Object.values(groups).map(g => {
+    const loanCAD    = g.cadLoan   + g.usdLoan   * fx;
+    const usedMarg   = g.cadTDMarg + g.usdTDMarg * fx;   // TD Required To Margin
+    const equityCAD  = g.cadEquity + g.usdEquity * fx;
+    const margPower  = equityCAD - usedMarg;              // Excess margin / buying power
+    const margUsePct = loanCAD > 0 ? (usedMarg / loanCAD) * 100 : 0;
+    return { ...g, loanCAD, usedMarg, equityCAD, margPower, margUsePct };
+  }).sort((a, b) => b.loanCAD - a.loanCAD);
+
+  // Grand totals
+  const tot = rows.reduce((t, r) => ({
+    loanCAD:    t.loanCAD    + r.loanCAD,
+    usedMarg:   t.usedMarg   + r.usedMarg,
+    equityCAD:  t.equityCAD  + r.equityCAD,
+    margPower:  t.margPower  + r.margPower,
+  }), { loanCAD: 0, usedMarg: 0, equityCAD: 0, margPower: 0 });
+  tot.margUsePct = tot.loanCAD > 0 ? (tot.usedMarg / tot.loanCAD) * 100 : 0;
+
+  // Colour helpers
+  const usageColour = pct => pct >= 90 ? 'var(--red)' : pct >= 70 ? 'var(--amber)' : 'var(--green)';
+  const usageBg     = pct => pct >= 90 ? 'var(--red-pale)' : pct >= 70 ? 'var(--amber-pale)' : 'var(--green-pale)';
+  const powerColour = v   => v >= 0 ? 'var(--green)' : 'var(--red)';
+
+  const usageBar = pct => {
+    const w = Math.min(Math.abs(pct), 100);
+    const c = usageColour(pct);
+    return `<div class="usage-bar-wrap">
+      <div class="usage-bar-track">
+        <div class="usage-bar-fill" style="width:${w}%;background:${c}"></div>
+      </div>
+      <span class="usage-bar-label" style="color:${c}">${fmtPct(pct)}</span>
+    </div>`;
+  };
+
+  const dataRows = rows.map((r, i) => `
+    <tr>
+      <td class="sum-base"><span class="acct-id">${r.base}</span></td>
+      <td class="sum-name">${r.shortName}</td>
+      <td style="color:var(--text-light);font-size:12px">${r.rr}</td>
+      <td class="num sum-money">${fmt2(r.loanCAD)}</td>
+      <td class="num sum-money" style="color:${powerColour(r.margPower)};font-weight:${r.margPower<0?'700':'500'}">${fmt2(r.margPower)}</td>
+      <td class="num sum-money">${fmt2(r.usedMarg)}</td>
+      <td class="sum-usage">${usageBar(r.margUsePct)}</td>
+    </tr>`).join('');
+
+  const totRow = `
+    <tr class="sum-totals-row">
+      <td colspan="3">GRAND TOTAL — ${rows.length} accounts</td>
+      <td class="num">${fmt2(tot.loanCAD)}</td>
+      <td class="num" style="color:${powerColour(tot.margPower)};font-weight:700">${fmt2(tot.margPower)}</td>
+      <td class="num">${fmt2(tot.usedMarg)}</td>
+      <td class="sum-usage">${usageBar(tot.margUsePct)}</td>
+    </tr>`;
+
+  wrap.innerHTML = `
+    <div class="sum-legend">
+      <span><span class="sum-dot" style="background:var(--green)"></span>Usage &lt; 70% — healthy</span>
+      <span><span class="sum-dot" style="background:var(--amber)"></span>Usage 70–90% — monitor</span>
+      <span><span class="sum-dot" style="background:var(--red)"></span>Usage ≥ 90% — critical</span>
+      <span style="color:var(--text-xlight);font-size:10px;margin-left:auto">
+        All values in CAD · USD converted at ${fx.toFixed(4)}
+        · Margin Power = Equity − Used Margin
+        · Usage % = Used Margin ÷ Loan Value
+      </span>
+    </div>
+    <div class="table-card">
+      <div class="table-scroll">
+        <table class="sum-table">
+          <thead>
+            <tr>
+              <th>Account (Base)</th>
+              <th>Name</th>
+              <th>RR Code</th>
+              <th class="num" title="Combined E+F loan value in CAD">Loan Value (CAD)</th>
+              <th class="num" title="Equity minus Used Margin — available buying power">Margin Power (CAD)</th>
+              <th class="num" title="TD Required To Margin converted to CAD">Used Margin (CAD)</th>
+              <th title="Used Margin ÷ Loan Value × 100">Margin Usage %</th>
+            </tr>
+          </thead>
+          <tbody>${dataRows}</tbody>
+          <tfoot>${totRow}</tfoot>
+        </table>
+      </div>
+    </div>`;
 }
 
 function renderAll() { renderKPIs(); renderOverview(); renderAccounts(); renderConcentration(); }
