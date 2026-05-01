@@ -526,17 +526,17 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
           <div class="kpi gold-accent">
             <div class="kpi-label">Portfolio MV</div>
             <div class="kpi-value" id="kpi-mv">$6.5M</div>
-            <div class="kpi-sub">Total market value</div>
+            <div class="kpi-sub" id="kpi-mv-sub">Total market value (CAD)</div>
           </div>
           <div class="kpi">
             <div class="kpi-label">Total Loan Value</div>
             <div class="kpi-value" id="kpi-loan">$2.9M</div>
-            <div class="kpi-sub">Margin exposure</div>
+            <div class="kpi-sub" id="kpi-loan-sub">Margin exposure (CAD)</div>
           </div>
           <div class="kpi green-accent">
             <div class="kpi-label">Total Equity</div>
             <div class="kpi-value" id="kpi-equity">$651K</div>
-            <div class="kpi-sub">Net account equity</div>
+            <div class="kpi-sub" id="kpi-equity-sub">Net account equity (CAD)</div>
           </div>
           <div class="kpi red-accent">
             <div class="kpi-label">Concentration Alerts</div>
@@ -587,10 +587,13 @@ tfoot tr td { background: var(--sl-teal-pale); color: var(--sl-teal); font-weigh
                   <th class="sortable" onclick="sortAcct('date')">Business Date</th>
                   <th>Currency</th>
                   <th class="num sortable" onclick="sortAcct('loan')">Loan Value</th>
+                  <th class="num th-cad-equiv" title="Loan Value converted to CAD at current FX rate">Loan Value (CAD) ▾</th>
                   <th class="num sortable" onclick="sortAcct('tdBal')">TD Balance</th>
                   <th class="num sortable" onclick="sortAcct('sdBal')">SD Balance</th>
                   <th class="num sortable" onclick="sortAcct('mv')">Market Value</th>
+                  <th class="num th-cad-equiv" title="Market Value converted to CAD at current FX rate">Market Value (CAD) ▾</th>
                   <th class="num sortable" onclick="sortAcct('equity')">Equity</th>
+                  <th class="num th-cad-equiv" title="Equity converted to CAD at current FX rate">Equity (CAD) ▾</th>
                   <th class="num sortable" onclick="sortAcct('tdMarg')">TD Req. Margin</th>
                   <th class="num th-cad-equiv" title="USD accounts converted at FX rate above; CAD accounts shown as-is">CAD Equiv. TD Margin ▾</th>
                   <th class="num">TD Req. Secure</th>
@@ -785,13 +788,20 @@ function showTab(name) {
 }
 
 function renderKPIs() {
-  const s = DATA.summary;
+  const s  = DATA.summary;
+  const fx = getFxRate();
+  const totalMVcad     = DATA.accounts.reduce((t,a)=>t+toCad(a.mv,    a.ccy),0);
+  const totalLoanCad   = DATA.accounts.reduce((t,a)=>t+toCad(a.loan,  a.ccy),0);
+  const totalEquityCad = DATA.accounts.reduce((t,a)=>t+toCad(a.equity,a.ccy),0);
   document.getElementById('kpi-total').textContent = s.totalAccounts;
   const subEl = document.getElementById('kpi-total-sub');
   if(subEl) subEl.textContent = s.cadAccounts + ' CAD · ' + s.usdAccounts + ' USD';
-  document.getElementById('kpi-mv').textContent = fmtK(s.totalMV);
-  document.getElementById('kpi-loan').textContent = fmtK(s.totalLoan);
-  document.getElementById('kpi-equity').textContent = fmtK(s.totalEquity);
+  document.getElementById('kpi-mv').textContent    = fmtK(totalMVcad);
+  document.getElementById('kpi-mv-sub').textContent = 'CAD equiv. at ' + fx.toFixed(4);
+  document.getElementById('kpi-loan').textContent   = fmtK(totalLoanCad);
+  document.getElementById('kpi-loan-sub').textContent = 'CAD equiv. at ' + fx.toFixed(4);
+  document.getElementById('kpi-equity').textContent = fmtK(totalEquityCad);
+  document.getElementById('kpi-equity-sub').textContent = 'CAD equiv. at ' + fx.toFixed(4);
   document.getElementById('kpi-alerts').textContent = s.bothAlerts;
   document.getElementById('kpi-alerts-sub').textContent = `MV + Ratio · ${s.mvAlerts} MV only · ${s.ratioAlerts} ratio only`;
   document.getElementById('alert-badge').textContent = s.totalAlerts;
@@ -819,9 +829,9 @@ function renderOverview() {
     const mf = mvCad >= mvT, rf = ratioCad / 100 >= rtT;
     const alert = (mf && rf) ? 'BOTH' : mf ? 'MV' : rf ? 'RATIO' : null;
     return { ...r, mvCad, lvCad, loanCad, ratioCad: parseFloat(ratioCad.toFixed(1)), alert };
-  }).filter(r => r.alert);
+  }).filter(r => r.alert === 'BOTH');
 
-  document.getElementById('overview-count').textContent = rows.length + ' positions flagged';
+  document.getElementById('overview-count').textContent = rows.length + ' both-flag positions';
   const tbody = document.getElementById('overview-tbody');
   tbody.innerHTML = rows.map(r => {
     const pct = Math.min(r.ratioCad, 400);
@@ -875,7 +885,7 @@ function cadEquiv(r) {
   return r.tdMarg * getFxRate();
 }
 
-function onFxChange() { renderAccounts(); renderOverview(); renderConcentration(); renderSummary(); }
+function onFxChange() { renderKPIs(); renderAccounts(); renderOverview(); renderConcentration(); renderSummary(); }
 
 function switchSubtab(name) {
   document.getElementById('sub-summary').style.display = name === 'summary' ? '' : 'none';
@@ -899,6 +909,10 @@ function renderAccounts() {
   document.getElementById('acct-tbody').innerHTML = rows.map(r=>{
     const cadEq = cadEquiv(r);
     const isUSD = r.suffix === 'F';
+    const fxTag = isUSD ? `<span class="fx-converted" title="USD × ${fx.toFixed(4)}">×${fx.toFixed(4)}</span>` : '';
+    const mvCad   = toCad(r.mv,   r.ccy);
+    const loanCad = toCad(r.loan, r.ccy);
+    const eqCad   = toCad(r.equity, r.ccy);
     return `<tr>
     <td><span class="acct-id">${r.id}</span></td>
     <td style="color:var(--text-light)">${r.rr}</td>
@@ -906,22 +920,33 @@ function renderAccounts() {
     <td style="color:var(--text-light);font-size:12px">${r.date || '—'}</td>
     <td><span class="tag tag-${r.ccy.toLowerCase()}">${r.ccy} · ${r.suffix}</span></td>
     <td class="num">${fmt2(r.loan)}</td>
+    <td class="num td-cad-equiv">${fmt2(loanCad)}${fxTag}</td>
     <td class="num">${fmt2(r.tdBal)}</td>
     <td class="num">${fmt2(r.sdBal)}</td>
     <td class="num">${fmt2(r.mv)}</td>
+    <td class="num td-cad-equiv">${fmt2(mvCad)}${fxTag}</td>
     <td class="num" style="color:var(--green);font-weight:500">${fmt2(r.equity)}</td>
+    <td class="num td-cad-equiv" style="color:var(--green);font-weight:500">${fmt2(eqCad)}${fxTag}</td>
     <td class="num">${fmt2(r.tdMarg)}</td>
-    <td class="num td-cad-equiv">${fmt2(cadEq)}${isUSD ? `<span class="fx-converted" title="USD × ${fx.toFixed(4)}">×${fx.toFixed(4)}</span>` : ''}</td>
+    <td class="num td-cad-equiv">${fmt2(cadEq)}${fxTag}</td>
     <td class="num">${fmt2(r.tdSec)}</td>
     <td style="color:var(--text-light)">${r.client}</td>
     <td style="color:var(--text-light)">${r.broker}</td>
   </tr>`;
-  }).join('')||`<tr><td colspan="15" class="empty">${DATA.accounts.length===0?'Upload an Account file to load data':'No accounts match filter'}</td></tr>`;
+  }).join('')||`<tr><td colspan="18" class="empty">${DATA.accounts.length===0?'Upload an Account file to load data':'No accounts match filter'}</td></tr>`;
   const sum=k=>rows.reduce((s,r)=>s+(r[k]||0),0);
-  const totalCadEquiv = rows.reduce((s,r)=>s+cadEquiv(r),0);
+  const totalCadEquiv   = rows.reduce((s,r)=>s+cadEquiv(r),0);
+  const totalLoanCad    = rows.reduce((s,r)=>s+toCad(r.loan,   r.ccy),0);
+  const totalMvCad      = rows.reduce((s,r)=>s+toCad(r.mv,     r.ccy),0);
+  const totalEquityCad  = rows.reduce((s,r)=>s+toCad(r.equity, r.ccy),0);
   document.getElementById('acct-totals').innerHTML=`<td colspan="5" style="font-weight:600;color:var(--sl-teal)">TOTALS — ${rows.length} rows</td>
-    <td class="num">${fmt2(sum('loan'))}</td><td class="num">${fmt2(sum('tdBal'))}</td><td class="num">${fmt2(sum('sdBal'))}</td>
-    <td class="num">${fmt2(sum('mv'))}</td><td class="num" style="color:var(--green);font-weight:600">${fmt2(sum('equity'))}</td>
+    <td class="num">${fmt2(sum('loan'))}</td>
+    <td class="num td-cad-equiv">${fmt2(totalLoanCad)}</td>
+    <td class="num">${fmt2(sum('tdBal'))}</td><td class="num">${fmt2(sum('sdBal'))}</td>
+    <td class="num">${fmt2(sum('mv'))}</td>
+    <td class="num td-cad-equiv">${fmt2(totalMvCad)}</td>
+    <td class="num" style="color:var(--green);font-weight:600">${fmt2(sum('equity'))}</td>
+    <td class="num td-cad-equiv" style="color:var(--green);font-weight:600">${fmt2(totalEquityCad)}</td>
     <td class="num">${fmt2(sum('tdMarg'))}</td>
     <td class="num td-cad-equiv">${fmt2(totalCadEquiv)}</td>
     <td class="num">${fmt2(sum('tdSec'))}</td><td colspan="2"></td>`;
