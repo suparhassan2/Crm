@@ -994,6 +994,7 @@ function renderConcentration() {
   // Also update summary counts live
   const allRows = DATA.concentration.map(r => {
     const mvCad   = toCad(r.mv, r.ccy);
+    const lvCad   = toCad(r.lv, r.ccy);
     const loanCad = cadLoanTotal(r);
     const ratioCad = loanCad > 0 ? (lvCad / loanCad) * 100 : 0;
     const mf = mvCad >= mvT, rf = ratioCad / 100 >= rtT;
@@ -1214,18 +1215,15 @@ function renderSummary() {
         rr:        a.rr,
         client:    a.client,
         cadLoan:   0, usdLoan:   0,
-        cadTDMarg: 0, usdTDMarg: 0,
         cadEquity: 0, usdEquity: 0,
       };
     }
     const g = groups[base];
     if (a.suffix === 'E') {           // CAD sub-account
       g.cadLoan   += a.loan;
-      g.cadTDMarg += a.tdMarg;
       g.cadEquity += a.equity;
-    } else {                          // USD sub-account — convert to CAD
+    } else {                          // USD sub-account (converted to CAD at render time)
       g.usdLoan   += a.loan;
-      g.usdTDMarg += a.tdMarg;
       g.usdEquity += a.equity;
     }
   });
@@ -1233,20 +1231,20 @@ function renderSummary() {
   // Compute CAD-equivalent totals for each group
   const rows = Object.values(groups).map(g => {
     const loanCAD    = g.cadLoan   + g.usdLoan   * fx;
-    const usedMarg   = g.cadTDMarg + g.usdTDMarg * fx;   // TD Required To Margin
     const equityCAD  = g.cadEquity + g.usdEquity * fx;
-    const margPower  = equityCAD - usedMarg;              // Excess margin / buying power
+    const margPower  = g.cadTDMarg + g.usdTDMarg * fx;   // TD Required To Margin (CAD)
+    const usedMarg   = loanCAD - margPower;               // Loan Value − TD Req. To Margin
     const margUsePct = loanCAD > 0 ? (usedMarg / loanCAD) * 100 : 0;
     return { ...g, loanCAD, usedMarg, equityCAD, margPower, margUsePct };
   }).sort((a, b) => b.loanCAD - a.loanCAD);
 
   // Grand totals
   const tot = rows.reduce((t, r) => ({
-    loanCAD:    t.loanCAD    + r.loanCAD,
-    usedMarg:   t.usedMarg   + r.usedMarg,
-    equityCAD:  t.equityCAD  + r.equityCAD,
-    margPower:  t.margPower  + r.margPower,
-  }), { loanCAD: 0, usedMarg: 0, equityCAD: 0, margPower: 0 });
+    loanCAD:    t.loanCAD   + r.loanCAD,
+    margPower:  t.margPower + r.margPower,
+    usedMarg:   t.usedMarg  + r.usedMarg,
+    equityCAD:  t.equityCAD + r.equityCAD,
+  }), { loanCAD: 0, margPower: 0, usedMarg: 0, equityCAD: 0 });
   tot.margUsePct = tot.loanCAD > 0 ? (tot.usedMarg / tot.loanCAD) * 100 : 0;
 
   // Colour helpers
@@ -1292,7 +1290,9 @@ function renderSummary() {
       <span><span class="sum-dot" style="background:var(--red)"></span>Usage ≥ 90% — critical</span>
       <span style="color:var(--text-xlight);font-size:10px;margin-left:auto">
         All values in CAD · USD converted at ${fx.toFixed(4)}
-        · Margin Power = Equity − Used Margin
+        · Used Margin = Loan Value − Equity
+        · Margin Power = TD Req. To Margin (CAD)
+        · Used Margin = Loan Value − Margin Power
         · Usage % = Used Margin ÷ Loan Value
       </span>
     </div>
@@ -1305,8 +1305,8 @@ function renderSummary() {
               <th>Name</th>
               <th>RR Code</th>
               <th class="num" title="Combined E+F loan value in CAD">Loan Value (CAD)</th>
-              <th class="num" title="Equity minus Used Margin — available buying power">Margin Power (CAD)</th>
-              <th class="num" title="TD Required To Margin converted to CAD">Used Margin (CAD)</th>
+              <th class="num" title="TD Required To Margin converted to CAD">Margin Power (CAD)</th>
+              <th class="num" title="Loan Value (CAD) − Equity (CAD) = net amount borrowed against the account">Used Margin (CAD)</th>
               <th title="Used Margin ÷ Loan Value × 100">Margin Usage %</th>
             </tr>
           </thead>
