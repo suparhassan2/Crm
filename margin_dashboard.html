@@ -1216,15 +1216,18 @@ function renderSummary() {
         rr:        a.rr,
         client:    a.client,
         cadLoan:   0, usdLoan:   0,
+        cadTDMarg: 0, usdTDMarg: 0,
         cadEquity: 0, usdEquity: 0,
       };
     }
     const g = groups[base];
     if (a.suffix === 'E') {           // CAD sub-account
       g.cadLoan   += a.loan;
+      g.cadTDMarg += a.tdMarg;
       g.cadEquity += a.equity;
     } else {                          // USD sub-account (converted to CAD at render time)
       g.usdLoan   += a.loan;
+      g.usdTDMarg += a.tdMarg;
       g.usdEquity += a.equity;
     }
   });
@@ -1232,7 +1235,7 @@ function renderSummary() {
   // Compute CAD-equivalent totals for each group
   const rows = Object.values(groups).map(g => {
     const loanCAD    = g.cadLoan   + g.usdLoan   * fx;
-    const margPower  = (g.cadTDMarg + g.usdTDMarg * fx) * 1;   // TD Required To Margin (CAD)
+    const margPower  = (g.cadTDMarg + g.usdTDMarg * fx) * -1;   // TD Required To Margin (CAD)
     const usedMarg   = loanCAD - margPower;               // Loan Value − TD Req. To Margin
     const equityCAD  = g.cadEquity + g.usdEquity * fx;
     const margUsePct = loanCAD > 0 ? (usedMarg / loanCAD) * 100 : 0;
@@ -1242,9 +1245,9 @@ function renderSummary() {
   // Grand totals
   const tot = rows.reduce((t, r) => ({
     loanCAD:    t.loanCAD   + r.loanCAD,
-    margPower:  t.margPower + r.margPower,
     usedMarg:   t.usedMarg  + r.usedMarg,
     equityCAD:  t.equityCAD + r.equityCAD,
+    margPower:  t.margPower + r.margPower,
   }), { loanCAD: 0, margPower: 0, usedMarg: 0, equityCAD: 0 });
   tot.margUsePct = tot.loanCAD > 0 ? (tot.usedMarg / tot.loanCAD) * 100 : 0;
 
