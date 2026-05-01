@@ -820,11 +820,12 @@ function renderOverview() {
 
   const rows = DATA.concentration.map(r => {
     const mvCad   = toCad(r.mv, r.ccy);
+    const lvCad   = toCad(r.lv, r.ccy);
     const loanCad = cadLoanTotal(r);
     const ratioCad = loanCad > 0 ? (lvCad / loanCad) * 100 : 0;
     const mf = mvCad >= mvT, rf = ratioCad / 100 >= rtT;
     const alert = (mf && rf) ? 'BOTH' : mf ? 'MV' : rf ? 'RATIO' : null;
-    return { ...r, mvCad, loanCad, ratioCad: parseFloat(ratioCad.toFixed(1)), alert };
+    return { ...r, mvCad, lvCad, loanCad, ratioCad: parseFloat(ratioCad.toFixed(1)), alert };
   }).filter(r => r.alert);
 
   document.getElementById('overview-count').textContent = rows.length + ' positions flagged';
